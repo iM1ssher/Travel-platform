@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// 1. 使用者模型 (Users)
+// ==========================================
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  password     String   // 使用 bcrypt 或其他安全方式儲存密碼雜湊
+  name         String?  // 顯示名稱（可選，例如暱稱）
+  avatarUrl    String?  // 使用者頭像 URL（可選）
+  role         String   @default("traveler") // 角色類型：traveler, planner, admin
+  createdAt    DateTime @default(now())
+
+  // 使用者的行程列表
+  trips        Trip[]
+}
+
+// ==========================================
+// 2. 行程模型 (Trips)
+// ==========================================
+model Trip {
+  id           Int      @id @default(autoincrement())
+  title        String   // 行程標題（建議 5~40 字）
+  coverImage   String?  // 封面圖片 URL
+  summary      String?  // 行程摘要或簡介
+  isPublished  Boolean  @default(false) // false = 草稿，true = 已發佈
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt // 每次更新資料時自動設定時間
+
+  // 行程作者（Planner）
+  authorId     Int
+  author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+
