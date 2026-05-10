@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export type UserSession = {
+  id: number;
   email: string;
   name: string;
   role: "traveler" | "planner" | "admin";

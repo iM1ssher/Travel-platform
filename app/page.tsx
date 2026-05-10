@@ -14,6 +14,8 @@ type PublishedTrip = {
   summary: string | null;
   coverImage: string | null;
   updatedAt: string;
+  averageRating: number | null;
+  reviewCount: number;
   author: {
     name: string | null;
     avatarUrl: string | null;
@@ -120,6 +122,31 @@ export default function HomePage() {
           </p>
         </motion.div>
 
+        {user?.role === "planner" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full mb-8"
+          >
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">規劃師快速入口</h2>
+                  <p className="text-sm text-slate-500">立即進入你的規劃師儀表板或建立新的行程草稿。</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/planner/dashboard" className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition">
+                    我的規劃師儀表板
+                  </Link>
+                  <Link href="/editor" className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                    建立新草稿
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -177,7 +204,11 @@ export default function HomePage() {
           ) : (
             <div className="flex flex-col gap-3">
               {trips.map((itinerary) => (
-                <div key={itinerary.id} className="flex flex-row bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer group border border-slate-100">
+                <Link
+                  key={itinerary.id}
+                  href={`/trip/${itinerary.id}`}
+                  className="flex flex-row bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer group border border-slate-100"
+                >
                   <div className="h-28 w-32 sm:w-36 bg-slate-200 relative overflow-hidden shrink-0">
                     {itinerary.coverImage ? (
                       <img
@@ -197,20 +228,29 @@ export default function HomePage() {
                       {itinerary.title}
                     </h3>
                     <p className="text-sm text-slate-500 line-clamp-2">{itinerary.summary || "本行程尚未補上摘要。"}</p>
-                    <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
-                      <div className="flex items-center gap-2">
-                        <span className="h-6 w-6 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center text-slate-500">
-                          {itinerary.author.avatarUrl ? (
-                            <img src={itinerary.author.avatarUrl} alt={itinerary.author.name ?? "作者"} className="h-full w-full object-cover" />
-                          ) : (
-                            <span>{(itinerary.author.name ?? "A").charAt(0)}</span>
-                          )}
-                        </span>
-                        <span>{itinerary.author.name ?? "匿名作者"}</span>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <span className="h-6 w-6 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center text-slate-500">
+                            {itinerary.author.avatarUrl ? (
+                              <img src={itinerary.author.avatarUrl} alt={itinerary.author.name ?? "作者"} className="h-full w-full object-cover" />
+                            ) : (
+                              <span>{(itinerary.author.name ?? "A").charAt(0)}</span>
+                            )}
+                          </span>
+                          <span>{itinerary.author.name ?? "匿名作者"}</span>
+                        </div>
                       </div>
+                      {itinerary.averageRating && (
+                        <div className="flex items-center gap-1 text-xs text-amber-600">
+                          <span>★</span>
+                          <span className="font-medium">{itinerary.averageRating.toFixed(1)}</span>
+                          <span className="text-slate-400">({itinerary.reviewCount})</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

@@ -6,7 +6,7 @@ export async function GET() {
   const user = await getSessionFromCookies();
 
   if (!user) {
-    return NextResponse.json({ drafts: [] }, { status: 401 });
+    return NextResponse.json({ drafts: [], publishedTrips: [] }, { status: 401 });
   }
 
   const drafts = await prisma.trip.findMany({
@@ -19,5 +19,22 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ drafts });
+  const publishedTrips = await prisma.trip.findMany({
+    where: {
+      authorId: user.id,
+      isPublished: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      averageRating: true,
+      reviewCount: true,
+    },
+  });
+
+  return NextResponse.json({ drafts, publishedTrips });
 }

@@ -5,7 +5,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Info, Lock, Mail, MapPinned, ShieldCheck } from "lucide-react";
+import { CheckCircle, Info, Lock, Mail, MapPinned, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/app/providers";
 
 type UserRole = "traveler" | "planner" | "admin";
@@ -64,6 +64,7 @@ export default function LogSignPage() {
       const loggedUser = result?.user;
       if (loggedUser) {
         setUser({
+          id: loggedUser.id,
           email: loggedUser.email,
           name: loggedUser.name,
           role: loggedUser.role,
@@ -153,7 +154,14 @@ export default function LogSignPage() {
 
               <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6 space-y-6">
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-4">選擇身份</p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <p className="text-sm font-semibold text-slate-700">選擇身份</p>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                      <span className="uppercase tracking-[0.2em]">目前已選</span>
+                      <span>{ROLE_OPTIONS.find((option) => option.value === role)?.label}</span>
+                    </div>
+                  </div>
+
                   <div className="grid gap-3 sm:grid-cols-3">
                     {ROLE_OPTIONS.map((option) => (
                       <button
@@ -163,11 +171,21 @@ export default function LogSignPage() {
                         className={`rounded-3xl border-2 p-4 text-left transition-all cursor-pointer ${
                           role === option.value
                             ? "border-blue-600 bg-blue-50 shadow-lg ring-2 ring-blue-200"
-                            : "border-slate-200 bg-white hover:border-blue-400 hover:bg-slate-50 active:bg-blue-50"
+                            : "border-slate-200 bg-white hover:border-blue-400 hover:bg-slate-50"
                         }`}
                       >
-                        <p className="text-sm font-bold text-slate-900">{option.label}</p>
-                        <p className="mt-2 text-xs text-slate-500">{option.description}</p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className={`text-sm font-bold ${role === option.value ? "text-slate-950" : "text-slate-900"}`}>{option.label}</p>
+                            <p className={`mt-2 text-xs ${role === option.value ? "text-slate-600" : "text-slate-500"}`}>{option.description}</p>
+                          </div>
+                          {role === option.value ? <CheckCircle className="mt-1 h-5 w-5 text-blue-600" /> : null}
+                        </div>
+                        <span className={`mt-4 inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          role === option.value ? "bg-blue-600/10 text-blue-700" : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {role === option.value ? "已選擇" : "點擊選擇"}
+                        </span>
                       </button>
                     ))}
                   </div>

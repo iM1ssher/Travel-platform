@@ -20,6 +20,12 @@ model User {
 
   // 使用者的行程列表
   trips        Trip[]
+
+  // 行程參與記錄
+  participations TripParticipation[]
+
+  // 評論記錄
+  reviews      Review[]
 }
 
 // ==========================================
@@ -37,6 +43,56 @@ model Trip {
   // 行程作者（Planner）
   authorId     Int
   author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // 評分統計
+  averageRating Float?   // 平均評分 (1-5)
+  reviewCount   Int      @default(0) // 評論數量
+
+  // 行程參與者
+  participations TripParticipation[]
+
+  // 行程評論
+  reviews       Review[]
+}
+
+// ==========================================
+// 3. 行程參與模型 (Trip Participation)
+// ==========================================
+model TripParticipation {
+  id           Int      @id @default(autoincrement())
+  joinedAt     DateTime @default(now()) // 加入時間
+  status       String   @default("active") // 狀態：active, completed, cancelled
+
+  // 參與者
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 參與的行程
+  tripId       Int
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId]) // 一個用戶只能參與一個行程一次
+}
+
+// ==========================================
+// 4. 評論模型 (Reviews)
+// ==========================================
+model Review {
+  id           Int      @id @default(autoincrement())
+  rating       Int      // 評分 (1-5)
+  comment      String?  // 評論內容（可選）
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // 評論者
+  reviewerId   Int
+  reviewer     User     @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  // 被評論的行程
+  tripId       Int
+  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, tripId]) // 一個用戶只能評論一個行程一次
 }
 
 

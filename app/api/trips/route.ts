@@ -18,7 +18,16 @@ export async function GET(request: Request) {
   const trips = await prisma.trip.findMany({
     where,
     orderBy: { updatedAt: "desc" },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      coverImage: true,
+      summary: true,
+      isPublished: true,
+      createdAt: true,
+      updatedAt: true,
+      averageRating: true,
+      reviewCount: true,
       author: {
         select: {
           name: true,

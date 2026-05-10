@@ -23,37 +23,81 @@ type DraftTrip = {
   updatedAt: string;
 };
 
-const plannerStats = {
-  rating: 4.8,
-  followers: 1205,
-  totalViews: 45800,
+type PlannerTrip = {
+  id: number;
+  title: string;
+  updatedAt: string;
+  averageRating: number | null;
+  reviewCount: number;
+};
+
+type PlannerStats = {
+  totalTrips: number;
+  publishedTrips: number;
+  draftTrips: number;
+  averageRating: number | null;
+  totalReviews: number;
+};
+
+const defaultStats: PlannerStats = {
+  totalTrips: 0,
+  publishedTrips: 0,
+  draftTrips: 0,
+  averageRating: null,
+  totalReviews: 0,
 };
 
 export default function PlannerDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [drafts, setDrafts] = useState<DraftTrip[]>([]);
+  const [publishedTrips, setPublishedTrips] = useState<PlannerTrip[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(true);
+  const [loadingPublishedTrips, setLoadingPublishedTrips] = useState(true);
+  const [stats, setStats] = useState<PlannerStats>(defaultStats);
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
-    const fetchDrafts = async () => {
+    const fetchData = async () => {
+      if (!user) return;
+
+      // Fetch drafts and published trips
       setLoadingDrafts(true);
+      setLoadingPublishedTrips(true);
       try {
         const res = await fetch("/api/trips/drafts", { cache: "no-store" });
         if (!res.ok) {
           setDrafts([]);
-          return;
+          setPublishedTrips([]);
+        } else {
+          const data = await res.json();
+          setDrafts(data.drafts ?? []);
+          setPublishedTrips(data.publishedTrips ?? []);
         }
-        const data = await res.json();
-        setDrafts(data.trips ?? []);
       } catch {
         setDrafts([]);
+        setPublishedTrips([]);
       } finally {
         setLoadingDrafts(false);
+        setLoadingPublishedTrips(false);
+      }
+
+      // Fetch stats
+      setLoadingStats(true);
+      try {
+        const res = await fetch(`/api/users/${user.id}/stats`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch {
+        setStats(defaultStats);
+      } finally {
+        setLoadingStats(false);
       }
     };
 
-    fetchDrafts();
-  }, []);
+    fetchData();
+  }, [user]);
 
   if (authLoading) {
     return (
@@ -132,27 +176,35 @@ export default function PlannerDashboard() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-500">平均評分</p>
-              <p className="text-2xl font-bold">{plannerStats.rating} <span className="text-sm text-slate-400 font-normal">/ 5</span></p>
+              <p className="text-2xl font-bold">
+                {loadingStats ? "..." : (stats.averageRating ? `${stats.averageRating} / 5` : "尚未評分")}
+              </p>
             </div>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
-              <Users size={28} />
+              <FileText size={28} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">粉絲數</p>
-              <p className="text-2xl font-bold">{plannerStats.followers.toLocaleString()} <span className="text-sm text-slate-400 font-normal">人</span></p>
+              <p className="text-sm font-medium text-slate-500">已發布行程</p>
+              <p className="text-2xl font-bold">
+                {loadingStats ? "..." : stats.publishedTrips}
+                <span className="text-sm text-slate-400 font-normal"> 個</span>
+              </p>
             </div>
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-teal-100 flex items-center justify-center text-teal-600">
-              <Eye size={28} />
+              <ThumbsUp size={28} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">總瀏覽</p>
-              <p className="text-2xl font-bold">{plannerStats.totalViews.toLocaleString()} <span className="text-sm text-slate-400 font-normal">次</span></p>
+              <p className="text-sm font-medium text-slate-500">總評論數</p>
+              <p className="text-2xl font-bold">
+                {loadingStats ? "..." : stats.totalReviews}
+                <span className="text-sm text-slate-400 font-normal"> 則</span>
+              </p>
             </div>
           </motion.div>
         </div>
@@ -185,6 +237,42 @@ export default function PlannerDashboard() {
                       <span className="text-xs text-slate-500">更新於 {new Date(draft.updatedAt).toLocaleString()}</span>
                     </div>
                     <p className="mt-3 text-sm text-slate-500">點擊繼續編輯並發布你的規劃。</p>
+                  </Link>
+                ))
+              )}
+            </div>
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }} className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2"><Users size={24} className="text-slate-600" /> 已發布行程</h2>
+              <Link href="/planner/dashboard" className="text-sm text-teal-600 font-medium hover:underline">管理已發布</Link>
+            </div>
+            <div className="space-y-4">
+              {loadingPublishedTrips ? (
+                <div className="space-y-3">
+                  <div className="h-24 rounded-3xl bg-slate-100 animate-pulse" />
+                  <div className="h-24 rounded-3xl bg-slate-100 animate-pulse" />
+                </div>
+              ) : publishedTrips.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-slate-500">
+                  目前還沒有已發布的行程，發布後會在這裡顯示。
+                </div>
+              ) : (
+                publishedTrips.map((trip) => (
+                  <Link
+                    key={trip.id}
+                    href={`/trip/${trip.id}`}
+                    className="group block rounded-3xl border border-slate-100 bg-slate-50 p-5 hover:border-teal-300 hover:bg-white transition"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-lg font-semibold text-slate-900">{trip.title || "未命名行程"}</h3>
+                      <span className="text-xs text-slate-500">更新於 {new Date(trip.updatedAt).toLocaleString()}</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 text-sm text-slate-500">
+                      <span>評分：{trip.averageRating !== null ? `${trip.averageRating.toFixed(1)} / 5` : "尚未評分"}</span>
+                      <span>{trip.reviewCount} 則評論</span>
+                    </div>
                   </Link>
                 ))
               )}
