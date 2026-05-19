@@ -1,4 +1,6 @@
-# Codex Instructions for Travel Platform
+# Shared Agent Instructions for Travel Platform
+
+This file is the shared instruction source for Codex and Copilot in this repository.
 
 ## Project Context
 
@@ -120,10 +122,9 @@ Known current risks to handle carefully when working in this area:
 
 ## Quality Bar
 
-Before final response:
+Before finishing work:
 
 - Summarize what changed and where.
 - Report verification commands and results.
 - If a command fails, include the relevant reason and whether it appears related to the change.
-- Mention remaining risks only when they affect the user request.
-
+- Mention remaining risks only when they affect the task.
