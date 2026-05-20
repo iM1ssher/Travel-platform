@@ -51,55 +51,61 @@ export async function GET(_: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [tripFavorites, plannerFavorites]: [FavoriteTripRow[], FavoritePlannerRow[]] = await Promise.all([
-    prisma.favoriteTrip.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        createdAt: true,
-        trip: {
-          select: {
-            id: true,
-            title: true,
-            summary: true,
-            coverImage: true,
-            isPublished: true,
-            updatedAt: true,
-            averageRating: true,
-            reviewCount: true,
-            author: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
+  const tripFavorites: FavoriteTripRow[] = await prisma.favoriteTrip.findMany({
+    where: {
+      userId,
+      trip: {
+        isPublished: true,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      createdAt: true,
+      trip: {
+        select: {
+          id: true,
+          title: true,
+          summary: true,
+          coverImage: true,
+          isPublished: true,
+          updatedAt: true,
+          averageRating: true,
+          reviewCount: true,
+          author: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const plannerFavorites: FavoritePlannerRow[] = sessionUser.role === "traveler"
+    ? await prisma.favoritePlanner.findMany({
+        where: { travelerId: userId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          createdAt: true,
+          planner: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+              createdAt: true,
+              trips: {
+                where: { isPublished: true },
+                select: { id: true },
               },
             },
           },
         },
-      },
-    }),
-    prisma.favoritePlanner.findMany({
-      where: { travelerId: userId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        createdAt: true,
-        planner: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-            createdAt: true,
-            trips: {
-              where: { isPublished: true },
-              select: { id: true },
-            },
-          },
-        },
-      },
-    }),
-  ]);
+      })
+    : [];
 
   return NextResponse.json({
     trips: tripFavorites.map((favorite: FavoriteTripRow) => ({

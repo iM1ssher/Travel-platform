@@ -6,14 +6,16 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+const canManageTripFavorites = (role: string): boolean => role === "traveler" || role === "planner";
+
 export async function GET(_: Request, { params }: RouteParams) {
   const sessionUser = await getSessionFromCookies();
   if (!sessionUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (sessionUser.role !== "traveler") {
-    return NextResponse.json({ error: "Only travelers can manage favorites" }, { status: 403 });
+  if (!canManageTripFavorites(sessionUser.role)) {
+    return NextResponse.json({ error: "Only travelers and planners can manage trip favorites" }, { status: 403 });
   }
 
   const resolvedParams = await params;
@@ -41,8 +43,8 @@ export async function POST(_: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (sessionUser.role !== "traveler") {
-    return NextResponse.json({ error: "Only travelers can manage favorites" }, { status: 403 });
+  if (!canManageTripFavorites(sessionUser.role)) {
+    return NextResponse.json({ error: "Only travelers and planners can manage trip favorites" }, { status: 403 });
   }
 
   const resolvedParams = await params;
@@ -86,8 +88,8 @@ export async function DELETE(_: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (sessionUser.role !== "traveler") {
-    return NextResponse.json({ error: "Only travelers can manage favorites" }, { status: 403 });
+  if (!canManageTripFavorites(sessionUser.role)) {
+    return NextResponse.json({ error: "Only travelers and planners can manage trip favorites" }, { status: 403 });
   }
 
   const resolvedParams = await params;

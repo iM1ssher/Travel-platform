@@ -279,6 +279,7 @@ export default function HomePage() {
                           key={`trip-${trip.id}-${trip.isFavorited ? "1" : "0"}`}
                           endpoint={`/api/trips/${trip.id}/favorite`}
                           initialIsFavorited={trip.isFavorited}
+                          allowedRoles={["traveler", "planner"]}
                           activeLabel="已收藏"
                           inactiveLabel="收藏"
                           variant="ghost"

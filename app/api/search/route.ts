@@ -30,7 +30,8 @@ type SearchPlannerRow = {
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   const sessionUser = await getSessionFromCookies();
-  const favoriteTravelerId = sessionUser?.role === "traveler" ? sessionUser.id : null;
+  const favoriteTripUserId = sessionUser?.role === "traveler" || sessionUser?.role === "planner" ? sessionUser.id : null;
+  const favoritePlannerTravelerId = sessionUser?.role === "traveler" ? sessionUser.id : null;
 
   const tripWhere = query
     ? {
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
           },
         },
         favorites: {
-          where: { userId: favoriteTravelerId ?? -1 },
+          where: { userId: favoriteTripUserId ?? -1 },
           select: { id: true },
         },
       },
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
           select: { id: true },
         },
         favoredByTravelers: {
-          where: { travelerId: favoriteTravelerId ?? -1 },
+          where: { travelerId: favoritePlannerTravelerId ?? -1 },
           select: { id: true },
         },
       },
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
       updatedAt: trip.updatedAt.toISOString(),
       averageRating: trip.averageRating,
       reviewCount: trip.reviewCount,
-      isFavorited: favoriteTravelerId ? trip.favorites.length > 0 : false,
+      isFavorited: favoriteTripUserId ? trip.favorites.length > 0 : false,
       author: trip.author,
     })),
     planners: planners.map((planner: SearchPlannerRow) => ({
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
       avatarUrl: planner.avatarUrl,
       createdAt: planner.createdAt.toISOString(),
       publishedTripCount: planner.trips.length,
-      isFavorited: favoriteTravelerId ? planner.favoredByTravelers.length > 0 : false,
+      isFavorited: favoritePlannerTravelerId ? planner.favoredByTravelers.length > 0 : false,
     })),
   });
 }

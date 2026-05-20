@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromCookies } from '@/lib/session';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -55,10 +56,19 @@ type AdminStats = BaseStats & {
 type UserStats = BaseStats | PlannerStats | TravelerStats | AdminStats;
 
 // GET /api/users/[id]/stats - 獲取用戶統計數據
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(_: Request, { params }: RouteParams) {
   try {
     const resolvedParams = await params;
     const userId = parseInt(resolvedParams.id, 10);
+
+    if (Number.isNaN(userId)) {
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+    }
+
+    const sessionUser = await getSessionFromCookies();
+    if (!sessionUser || sessionUser.id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // 檢查用戶是否存在
     const user = await prisma.user.findUnique({

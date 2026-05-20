@@ -1,7 +1,7 @@
 ﻿// 旅行規劃師儀表板 - 顯示使用者資訊與真實草稿
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Compass,
@@ -10,11 +10,17 @@ import {
   Star,
   FileText,
   Edit3,
-  PlusCircle,
   ThumbsUp,
+  AlertTriangle,
+  ChevronRight,
+  ExternalLink,
+  Heart,
+  Map,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/app/providers";
+import { FavoriteToggle } from "@/app/components/favorite-toggle";
 import { ProfilePanel } from "@/app/components/profile-panel";
 
 type DraftTrip = {
@@ -31,12 +37,33 @@ type PlannerTrip = {
   reviewCount: number;
 };
 
+type FavoriteTrip = {
+  id: number;
+  favoritedAt: string;
+  trip: {
+    id: number;
+    title: string;
+    coverImage: string | null;
+    averageRating: number | null;
+    reviewCount: number;
+  };
+};
+
 type PlannerStats = {
   totalTrips: number;
   publishedTrips: number;
   draftTrips: number;
   averageRating: number | null;
   totalReviews: number;
+};
+
+type TripsDashboardResponse = {
+  drafts?: DraftTrip[];
+  publishedTrips?: PlannerTrip[];
+};
+
+type FavoritesResponse = {
+  trips?: FavoriteTrip[];
 };
 
 const defaultStats: PlannerStats = {
@@ -47,57 +74,103 @@ const defaultStats: PlannerStats = {
   totalReviews: 0,
 };
 
+const formatDateTime = (value: string): string => new Date(value).toLocaleString("zh-TW");
+
 export default function PlannerDashboard() {
   const { user, loading: authLoading, setUser } = useAuth();
   const [drafts, setDrafts] = useState<DraftTrip[]>([]);
   const [publishedTrips, setPublishedTrips] = useState<PlannerTrip[]>([]);
-  const [loadingDrafts, setLoadingDrafts] = useState(true);
-  const [loadingPublishedTrips, setLoadingPublishedTrips] = useState(true);
+  const [favoriteTrips, setFavoriteTrips] = useState<FavoriteTrip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(true);
+  const [loadingFavoriteTrips, setLoadingFavoriteTrips] = useState(true);
   const [stats, setStats] = useState<PlannerStats>(defaultStats);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
+  const fetchDashboardData = useCallback(async (showRefreshing = false): Promise<void> => {
+    if (!user) {
+      setDrafts([]);
+      setPublishedTrips([]);
+      setFavoriteTrips([]);
+      setStats(defaultStats);
+      setLoadingTrips(false);
+      setLoadingFavoriteTrips(false);
+      setLoadingStats(false);
+      return;
+    }
 
-      // Fetch drafts and published trips
-      setLoadingDrafts(true);
-      setLoadingPublishedTrips(true);
-      try {
-        const res = await fetch("/api/trips/drafts", { cache: "no-store" });
-        if (!res.ok) {
-          setDrafts([]);
-          setPublishedTrips([]);
-        } else {
-          const data = await res.json();
-          setDrafts(data.drafts ?? []);
-          setPublishedTrips(data.publishedTrips ?? []);
-        }
-      } catch {
+    setDashboardError("");
+    setLoadingTrips(true);
+    setLoadingFavoriteTrips(true);
+    setLoadingStats(true);
+    setRefreshing(showRefreshing);
+
+    try {
+      const [tripsRes, statsRes, favoritesRes]: [Response, Response, Response] = await Promise.all([
+        fetch("/api/trips/drafts", { cache: "no-store" }),
+        fetch(`/api/users/${user.id}/stats`, { cache: "no-store" }),
+        fetch(`/api/users/${user.id}/favorites`, { cache: "no-store" }),
+      ]);
+
+      if (!tripsRes.ok) {
         setDrafts([]);
         setPublishedTrips([]);
-      } finally {
-        setLoadingDrafts(false);
-        setLoadingPublishedTrips(false);
+        setDashboardError("無法同步行程列表，請稍後重試。");
+      } else {
+        const tripsData = (await tripsRes.json()) as TripsDashboardResponse;
+        setDrafts(tripsData.drafts ?? []);
+        setPublishedTrips(tripsData.publishedTrips ?? []);
       }
 
-      // Fetch stats
-      setLoadingStats(true);
-      try {
-        const res = await fetch(`/api/users/${user.id}/stats`, { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          setStats(data);
-        }
-      } catch {
+      if (!statsRes.ok) {
         setStats(defaultStats);
-      } finally {
-        setLoadingStats(false);
+        setDashboardError((current: string) => current || "無法同步統計資料，請稍後重試。");
+      } else {
+        const statsData = (await statsRes.json()) as PlannerStats;
+        setStats(statsData);
+      }
+
+      if (!favoritesRes.ok) {
+        setFavoriteTrips([]);
+        setDashboardError((current: string) => current || "無法同步收藏行程，請稍後重試。");
+      } else {
+        const favoritesData = (await favoritesRes.json()) as FavoritesResponse;
+        setFavoriteTrips(favoritesData.trips ?? []);
+      }
+    } catch {
+      setDrafts([]);
+      setPublishedTrips([]);
+      setFavoriteTrips([]);
+      setStats(defaultStats);
+      setDashboardError("同步資料時發生錯誤，請檢查連線後再試。");
+    } finally {
+      setLoadingTrips(false);
+      setLoadingFavoriteTrips(false);
+      setLoadingStats(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => fetchDashboardData());
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    const refreshOnReturn = (): void => {
+      if (document.visibilityState === "visible") {
+        void fetchDashboardData();
       }
     };
 
-    fetchData();
-  }, [user]);
+    window.addEventListener("focus", refreshOnReturn);
+    document.addEventListener("visibilitychange", refreshOnReturn);
+
+    return () => {
+      window.removeEventListener("focus", refreshOnReturn);
+      document.removeEventListener("visibilitychange", refreshOnReturn);
+    };
+  }, [fetchDashboardData]);
 
   if (authLoading) {
     return (
@@ -158,11 +231,26 @@ export default function PlannerDashboard() {
                 onUserUpdated={setUser}
               />
             </div>
-            <Link href="/editor" className="inline-flex items-center gap-2 bg-teal-600 text-white px-5 py-3 rounded-full font-medium hover:bg-teal-700 transition shadow-sm">
-              <PlusCircle size={20} /> 建立新草稿
-            </Link>
           </div>
         </header>
+
+        {dashboardError && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={18} />
+              <span>{dashboardError}</span>
+            </div>
+            <button
+              onClick={() => {
+                void fetchDashboardData(true);
+              }}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-full bg-amber-500 px-4 py-2 font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+            >
+              <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} /> 重新整理
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4">
@@ -204,14 +292,25 @@ export default function PlannerDashboard() {
           </motion.div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2"><FileText size={24} className="text-teal-600" /> 草稿行程</h2>
-              <Link href="/editor" className="text-sm text-teal-600 font-medium hover:underline">建立新草稿</Link>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    void fetchDashboardData(true);
+                  }}
+                  disabled={refreshing}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-teal-600 disabled:opacity-60"
+                >
+                  <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> 同步
+                </button>
+                <Link href="/editor" className="text-sm text-teal-600 font-medium hover:underline">建立新草稿</Link>
+              </div>
             </div>
             <div className="space-y-4">
-              {loadingDrafts ? (
+              {loadingTrips ? (
                 <div className="space-y-3">
                   <div className="h-24 rounded-3xl bg-slate-100 animate-pulse" />
                   <div className="h-24 rounded-3xl bg-slate-100 animate-pulse" />
@@ -222,29 +321,44 @@ export default function PlannerDashboard() {
                 </div>
               ) : (
                 drafts.map((draft) => (
-                  <Link
+                  <article
                     key={draft.id}
-                    href={`/editor?draftId=${draft.id}`}
-                    className="group block rounded-3xl border border-slate-100 bg-slate-50 p-5 hover:border-teal-300 hover:bg-white transition"
+                    className="rounded-3xl border border-slate-100 bg-slate-50 p-5 transition hover:border-teal-300 hover:bg-white"
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className="text-lg font-semibold text-slate-900">{draft.title || "未命名草稿"}</h3>
-                      <span className="text-xs text-slate-500">更新於 {new Date(draft.updatedAt).toLocaleString()}</span>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">{draft.title || "未命名草稿"}</h3>
+                        <p className="mt-2 text-sm text-slate-500">更新於 {formatDateTime(draft.updatedAt)}</p>
+                      </div>
+                      <Link
+                        href={`/editor?draftId=${draft.id}`}
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+                      >
+                        <Edit3 size={16} /> 繼續編輯
+                      </Link>
                     </div>
-                    <p className="mt-3 text-sm text-slate-500">點擊繼續編輯並發布你的規劃。</p>
-                  </Link>
+                  </article>
                 ))
               )}
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }} className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-6">
+          <div className="space-y-8">
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }} className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2"><Users size={24} className="text-slate-600" /> 已發布行程</h2>
-              <Link href="/planner/dashboard" className="text-sm text-teal-600 font-medium hover:underline">管理已發布</Link>
+              <button
+                onClick={() => {
+                  void fetchDashboardData(true);
+                }}
+                disabled={refreshing}
+                className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-teal-600 disabled:opacity-60"
+              >
+                <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> 同步
+              </button>
             </div>
             <div className="space-y-4">
-              {loadingPublishedTrips ? (
+              {loadingTrips ? (
                 <div className="space-y-3">
                   <div className="h-24 rounded-3xl bg-slate-100 animate-pulse" />
                   <div className="h-24 rounded-3xl bg-slate-100 animate-pulse" />
@@ -255,47 +369,128 @@ export default function PlannerDashboard() {
                 </div>
               ) : (
                 publishedTrips.map((trip) => (
-                  <Link
+                  <article
                     key={trip.id}
-                    href={`/trip/${trip.id}`}
-                    className="group block rounded-3xl border border-slate-100 bg-slate-50 p-5 hover:border-teal-300 hover:bg-white transition"
+                    className="rounded-3xl border border-slate-100 bg-slate-50 p-5 transition hover:border-teal-300 hover:bg-white"
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <h3 className="text-lg font-semibold text-slate-900">{trip.title || "未命名行程"}</h3>
-                      <span className="text-xs text-slate-500">更新於 {new Date(trip.updatedAt).toLocaleString()}</span>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900">{trip.title || "未命名行程"}</h3>
+                        <p className="mt-2 text-sm text-slate-500">更新於 {formatDateTime(trip.updatedAt)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/editor?draftId=${trip.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-700"
+                        >
+                          <Edit3 size={16} /> 編輯
+                        </Link>
+                        <Link
+                          href={`/trip/${trip.id}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        >
+                          <ExternalLink size={16} /> 檢視
+                        </Link>
+                      </div>
                     </div>
                     <div className="mt-3 flex items-center gap-3 text-sm text-slate-500">
                       <span>評分：{trip.averageRating !== null ? `${trip.averageRating.toFixed(1)} / 5` : "尚未評分"}</span>
                       <span>{trip.reviewCount} 則評論</span>
                     </div>
-                  </Link>
+                  </article>
                 ))
               )}
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-2"><Edit3 size={24} className="text-amber-500" /> 快速操作</h2>
+          <motion.section initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-xl font-bold">
+                <Heart size={24} className="text-rose-600" /> 收藏行程
+              </h2>
+              <Link href="/" className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200">
+                +
+              </Link>
             </div>
-            <div className="space-y-4">
-              <Link href="/editor" className="block rounded-3xl bg-teal-600 px-5 py-4 text-white font-semibold text-center hover:bg-teal-700 transition">
-                建立新行程草稿
-              </Link>
-              <Link href="/planner/dashboard" className="block rounded-3xl border border-slate-200 px-5 py-4 text-slate-700 font-semibold text-center hover:bg-slate-50 transition">
-                查看全部草稿
-              </Link>
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                <p className="font-semibold text-slate-900">小提醒</p>
-                <p className="mt-2">草稿會自動儲存在你的帳號中，隨時回來繼續編輯或發布。</p>
+
+            <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
+              <div className="relative h-48">
+                <div className="absolute inset-0 bg-slate-100" />
+                <div className="absolute left-0 top-10 h-10 w-full -rotate-6 bg-white/80" />
+                <div className="absolute left-8 top-0 h-full w-12 rotate-12 bg-white/70" />
+                <div className="absolute bottom-8 left-0 h-8 w-full rotate-3 bg-teal-100" />
+                <div className="absolute left-1/4 top-1/3 flex h-9 w-9 items-center justify-center rounded-full bg-rose-600 text-white shadow-sm">
+                  <Map size={18} />
+                </div>
+                <div className="absolute right-1/4 top-1/2 h-4 w-4 rounded-full bg-teal-500 ring-4 ring-white" />
+                <div className="absolute bottom-6 left-1/2 h-3 w-3 rounded-full bg-amber-500 ring-4 ring-white" />
               </div>
             </div>
-          </motion.div>
+
+            {loadingFavoriteTrips ? (
+              <div className="space-y-3">
+                <div className="h-16 rounded-2xl bg-slate-100 animate-pulse" />
+                <div className="h-16 rounded-2xl bg-slate-100 animate-pulse" />
+              </div>
+            ) : favoriteTrips.length === 0 ? (
+              <div className="py-8 text-center text-slate-500">
+                <Map size={32} className="mx-auto mb-2 text-slate-400" />
+                <p>尚未收藏行程</p>
+                <p className="text-sm">在首頁收藏行程後，會顯示在這裡。</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {favoriteTrips.map((favoriteTrip: FavoriteTrip) => (
+                  <div key={favoriteTrip.id} className="rounded-2xl p-3 transition hover:bg-slate-50">
+                    <div className="flex items-center gap-4">
+                      <Link href={`/trip/${favoriteTrip.trip.id}`} className="group flex flex-1 items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-teal-100 font-bold text-teal-700">
+                          {favoriteTrip.trip.coverImage ? (
+                            <img src={favoriteTrip.trip.coverImage} alt={favoriteTrip.trip.title} className="h-full w-full object-cover" />
+                          ) : (
+                            favoriteTrip.trip.title.charAt(0)
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate font-bold text-slate-800 transition group-hover:text-teal-700">{favoriteTrip.trip.title}</h3>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs font-medium">
+                            <span className="text-slate-500">收藏於 {formatDateTime(favoriteTrip.favoritedAt)}</span>
+                            {favoriteTrip.trip.averageRating ? (
+                              <span className="text-amber-600">
+                                {favoriteTrip.trip.averageRating.toFixed(1)} / 5（{favoriteTrip.trip.reviewCount}）
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-slate-300 transition group-hover:text-teal-700" />
+                      </Link>
+
+                      <FavoriteToggle
+                        endpoint={`/api/trips/${favoriteTrip.trip.id}/favorite`}
+                        initialIsFavorited
+                        activeLabel="已收藏"
+                        inactiveLabel="收藏"
+                        allowedRoles={["traveler", "planner"]}
+                        variant="ghost"
+                        className="shrink-0"
+                        onChange={(isFavorited: boolean) => {
+                          if (!isFavorited) {
+                            setFavoriteTrips((current: FavoriteTrip[]) =>
+                              current.filter((item: FavoriteTrip) => item.trip.id !== favoriteTrip.trip.id)
+                            );
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.section>
+          </div>
+
         </div>
       </main>
     </div>
   );
 }
-
-
-

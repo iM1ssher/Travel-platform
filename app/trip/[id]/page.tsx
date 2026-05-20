@@ -246,6 +246,7 @@ export default function TripDetailPage() {
                 <div className="flex gap-3">
                   <FavoriteToggle
                     endpoint={`/api/trips/${id}/favorite`}
+                    allowedRoles={["traveler", "planner"]}
                     activeLabel="已收藏"
                     inactiveLabel="收藏行程"
                     variant="ghost"

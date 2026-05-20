@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { useAuth } from "@/app/providers";
 
+type FavoriteRole = "traveler" | "planner";
+
 type FavoriteToggleProps = {
   endpoint: string;
   activeLabel: string;
@@ -12,12 +14,16 @@ type FavoriteToggleProps = {
   initialIsFavorited?: boolean | null;
   variant?: "solid" | "ghost";
   className?: string;
+  allowedRoles?: FavoriteRole[];
   onChange?: (isFavorited: boolean) => void;
 };
 
 type FavoriteStatusResponse = {
   isFavorited?: boolean;
 };
+
+const canManageFavorite = (role: string | undefined, allowedRoles: FavoriteRole[]): boolean =>
+  allowedRoles.some((allowedRole: FavoriteRole) => allowedRole === role);
 
 export function FavoriteToggle({
   endpoint,
@@ -26,16 +32,19 @@ export function FavoriteToggle({
   initialIsFavorited = null,
   variant = "solid",
   className = "",
+  allowedRoles = ["traveler"],
   onChange,
 }: FavoriteToggleProps) {
   const { user } = useAuth();
+  const allowedRolesKey = allowedRoles.join("|");
   const [isFavorited, setIsFavorited] = useState<boolean>(initialIsFavorited ?? false);
-  const [isLoading, setIsLoading] = useState<boolean>(initialIsFavorited === null && user?.role === "traveler");
+  const [isLoading, setIsLoading] = useState<boolean>(initialIsFavorited === null && canManageFavorite(user?.role, allowedRoles));
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     const loadStatus = async () => {
-      if (!user || user.role !== "traveler" || initialIsFavorited !== null) {
+      const allowedRoleList = allowedRolesKey.split("|") as FavoriteRole[];
+      if (!user || !canManageFavorite(user.role, allowedRoleList) || initialIsFavorited !== null) {
         setIsLoading(false);
         return;
       }
@@ -57,7 +66,7 @@ export function FavoriteToggle({
     };
 
     void loadStatus();
-  }, [endpoint, initialIsFavorited, user]);
+  }, [allowedRolesKey, endpoint, initialIsFavorited, user]);
 
   if (!user) {
     return (
@@ -71,7 +80,7 @@ export function FavoriteToggle({
     );
   }
 
-  if (user.role !== "traveler") {
+  if (!canManageFavorite(user.role, allowedRolesKey.split("|") as FavoriteRole[])) {
     return null;
   }
 
