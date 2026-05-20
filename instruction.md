@@ -52,6 +52,11 @@ Follow deprecation notices and current conventions from those docs.
 - Prefer type-safe Prisma types over `any`.
 - Prefer existing helpers in `lib/auth.ts`, `lib/session.ts`, and `lib/prisma.ts` instead of duplicating logic.
 - Do not add dependencies unless the task clearly needs them.
+- Never use any. Always define proper Interfaces or Types.
+- Avoid implicit any. Always explicitly type function parameters, return types, and variables.
+- pay special attention to array methods like .reduce(), .map(), and .filter(). Always explicitly type the  accumulator and current value (e.g., .reduce((sum: number, item: MyType) => ...)).
+- If typing a database model, refer to Prisma schemas or generate appropriate types.
+- If you are unsure about a specific type, ask for clarification or use unknown and perform type narrowing, but never default to any.
 
 ## Commands
 
