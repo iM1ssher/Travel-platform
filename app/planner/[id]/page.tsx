@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { ArrowLeft, Star, User, MapPin } from 'lucide-react';
+import { FavoriteToggle } from '@/app/components/favorite-toggle';
 
 type Params = {
   params: {
@@ -93,6 +94,14 @@ export default async function PlannerProfilePage({ params }: Params) {
                 <p className="mt-2 text-2xl font-bold text-slate-900">{new Date(planner.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
+          </div>
+          <div className="border-t border-slate-100 px-8 py-5 lg:px-10">
+            <FavoriteToggle
+              endpoint={`/api/planners/${planner.id}/favorite`}
+              activeLabel="已收藏規劃師"
+              inactiveLabel="收藏規劃師"
+              variant="ghost"
+            />
           </div>
         </div>
 

@@ -71,6 +71,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         select: { rating: true }
       });
 
+      const [favoriteTrips, favoritePlanners] = await Promise.all([
+        prisma.favoriteTrip.count({
+          where: { userId }
+        }),
+        prisma.favoritePlanner.count({
+          where: { travelerId: userId }
+        })
+      ]);
+
       const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
 
       stats = {
@@ -78,6 +87,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         participatedTrips: participations.length,
         activeTrips: participations.filter(p => p.status === 'active').length,
         completedTrips: participations.filter(p => p.status === 'completed').length,
+        favoriteTrips,
+        favoritePlanners,
         averageGivenRating: reviews.length > 0 ? Math.round((totalRating / reviews.length) * 10) / 10 : null,
         totalReviewsGiven: reviews.length
       };

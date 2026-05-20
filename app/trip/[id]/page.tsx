@@ -16,6 +16,7 @@ import {
   Minus
 } from "lucide-react";
 import Link from "next/link";
+import { FavoriteToggle } from "@/app/components/favorite-toggle";
 import { useAuth } from "@/app/providers";
 
 type Trip = {
@@ -248,6 +249,12 @@ export default function TripDetailPage() {
 
               {user && (
                 <div className="flex gap-3">
+                  <FavoriteToggle
+                    endpoint={`/api/trips/${id}/favorite`}
+                    activeLabel="已收藏"
+                    inactiveLabel="收藏行程"
+                    variant="ghost"
+                  />
                   {participation.id ? (
                     <>
                       <button

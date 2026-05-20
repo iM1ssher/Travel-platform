@@ -6,93 +6,83 @@ datasource db {
   provider = "postgresql"
 }
 
-// ==========================================
-// 1. 使用者模型 (Users)
-// ==========================================
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  password     String   // 使用 bcrypt 或其他安全方式儲存密碼雜湊
-  name         String?  // 顯示名稱（可選，例如暱稱）
-  avatarUrl    String?  // 使用者頭像 URL（可選）
-  role         String   @default("traveler") // 角色類型：traveler, planner, admin
-  createdAt    DateTime @default(now())
-
-  // 使用者的行程列表
-  trips        Trip[]
-
-  // 行程參與記錄
-  participations TripParticipation[]
-
-  // 評論記錄
-  reviews      Review[]
+  id                 Int               @id @default(autoincrement())
+  email              String            @unique
+  password           String
+  name               String?
+  avatarUrl          String?
+  role               String            @default("traveler")
+  createdAt          DateTime          @default(now())
+  trips              Trip[]
+  participations     TripParticipation[]
+  reviews            Review[]
+  tripFavorites      FavoriteTrip[]
+  favoritePlanners   FavoritePlanner[] @relation("TravelerFavoritePlanners")
+  favoredByTravelers FavoritePlanner[] @relation("PlannerFavoriteFollowers")
 }
 
-// ==========================================
-// 2. 行程模型 (Trips)
-// ==========================================
 model Trip {
-  id           Int      @id @default(autoincrement())
-  title        String   // 行程標題（建議 5~40 字）
-  coverImage   String?  // 封面圖片 URL
-  summary      String?  // 行程摘要或簡介
-  isPublished  Boolean  @default(false) // false = 草稿，true = 已發佈
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt // 每次更新資料時自動設定時間
-
-  // 行程作者（Planner）
-  authorId     Int
-  author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  // 評分統計
-  averageRating Float?   // 平均評分 (1-5)
-  reviewCount   Int      @default(0) // 評論數量
-
-  // 行程參與者
+  id             Int                 @id @default(autoincrement())
+  title          String
+  coverImage     String?
+  summary        String?
+  isPublished    Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  authorId       Int
+  author         User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  averageRating  Float?
+  reviewCount    Int                 @default(0)
   participations TripParticipation[]
-
-  // 行程評論
-  reviews       Review[]
+  reviews        Review[]
+  favorites      FavoriteTrip[]
 }
 
-// ==========================================
-// 3. 行程參與模型 (Trip Participation)
-// ==========================================
 model TripParticipation {
-  id           Int      @id @default(autoincrement())
-  joinedAt     DateTime @default(now()) // 加入時間
-  status       String   @default("active") // 狀態：active, completed, cancelled
+  id       Int      @id @default(autoincrement())
+  joinedAt DateTime @default(now())
+  status   String   @default("active")
+  userId   Int
+  tripId   Int
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip     Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
-  // 參與者
-  userId       Int
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // 參與的行程
-  tripId       Int
-  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, tripId]) // 一個用戶只能參與一個行程一次
+  @@unique([userId, tripId])
 }
 
-// ==========================================
-// 4. 評論模型 (Reviews)
-// ==========================================
+model FavoriteTrip {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  userId    Int
+  tripId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tripId])
+}
+
+model FavoritePlanner {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  travelerId Int
+  plannerId  Int
+  traveler   User     @relation("TravelerFavoritePlanners", fields: [travelerId], references: [id], onDelete: Cascade)
+  planner    User     @relation("PlannerFavoriteFollowers", fields: [plannerId], references: [id], onDelete: Cascade)
+
+  @@unique([travelerId, plannerId])
+}
+
 model Review {
-  id           Int      @id @default(autoincrement())
-  rating       Int      // 評分 (1-5)
-  comment      String?  // 評論內容（可選）
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  reviewerId Int
+  reviewer   User     @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  tripId     Int
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
 
-  // 評論者
-  reviewerId   Int
-  reviewer     User     @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
-
-  // 被評論的行程
-  tripId       Int
-  trip         Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-
-  @@unique([reviewerId, tripId]) // 一個用戶只能評論一個行程一次
+  @@unique([reviewerId, tripId])
 }
-
-
