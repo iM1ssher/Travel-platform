@@ -2,24 +2,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromCookies } from '@/lib/session';
 
-// GET /api/reviews - 獲取行程的所有評論
+type ReviewMutationBody = {
+  tripId?: number | string;
+  reviewId?: number | string;
+  rating?: number;
+  comment?: string | null;
+};
+
+type ReviewRatingRow = {
+  rating: number;
+};
+
+function parseId(value: number | string | undefined): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const tripId = searchParams.get('tripId');
+    const tripId = parseId(searchParams.get('tripId') ?? undefined);
 
-    if (!tripId) {
+    if (tripId === null) {
       return NextResponse.json({ error: 'Trip ID is required' }, { status: 400 });
     }
 
     const reviews = await prisma.review.findMany({
-      where: { tripId: parseInt(tripId) },
+      where: { tripId },
       include: {
         reviewer: {
-          select: { id: true, name: true, avatarUrl: true }
-        }
+          select: { id: true, name: true, avatarUrl: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return NextResponse.json(reviews);
@@ -29,7 +52,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/reviews - 創建新評論
 export async function POST(request: NextRequest) {
   try {
     const session = await getSessionFromCookies();
@@ -37,57 +59,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { tripId, rating, comment } = await request.json();
+    const { tripId: rawTripId, rating, comment }: ReviewMutationBody = await request.json();
+    const tripId = parseId(rawTripId);
 
-    if (!tripId || !rating || rating < 1 || rating > 5) {
+    if (tripId === null || typeof rating !== 'number' || rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
 
-    // 檢查用戶是否參與了這個行程
     const participation = await prisma.tripParticipation.findUnique({
       where: {
         userId_tripId: {
           userId: session.id,
-          tripId: parseInt(tripId)
-        }
-      }
+          tripId,
+        },
+      },
     });
 
     if (!participation) {
-      return NextResponse.json({ error: 'You must participate in this trip to leave a review' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'You must participate in this trip to leave a review' },
+        { status: 403 }
+      );
     }
 
-    // 檢查是否已經評論過
     const existingReview = await prisma.review.findUnique({
       where: {
         reviewerId_tripId: {
           reviewerId: session.id,
-          tripId: parseInt(tripId)
-        }
-      }
+          tripId,
+        },
+      },
     });
 
     if (existingReview) {
       return NextResponse.json({ error: 'You have already reviewed this trip' }, { status: 409 });
     }
 
-    // 創建評論
     const review = await prisma.review.create({
       data: {
-        tripId: parseInt(tripId),
+        tripId,
         reviewerId: session.id,
         rating,
-        comment
+        comment: typeof comment === 'string' ? comment : null,
       },
       include: {
         reviewer: {
-          select: { id: true, name: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
     });
 
-    // 更新行程的平均評分
-    await updateTripRating(parseInt(tripId));
+    await updateTripRating(tripId);
 
     return NextResponse.json(review, { status: 201 });
   } catch (error) {
@@ -96,7 +118,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT /api/reviews - 更新評論
 export async function PUT(request: NextRequest) {
   try {
     const session = await getSessionFromCookies();
@@ -104,33 +125,35 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { reviewId, rating, comment } = await request.json();
+    const { reviewId: rawReviewId, rating, comment }: ReviewMutationBody = await request.json();
+    const reviewId = parseId(rawReviewId);
 
-    if (!reviewId || !rating || rating < 1 || rating > 5) {
+    if (reviewId === null || typeof rating !== 'number' || rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Invalid input data' }, { status: 400 });
     }
 
-    // 檢查評論是否存在且屬於當前用戶
     const existingReview = await prisma.review.findUnique({
-      where: { id: parseInt(reviewId) }
+      where: { id: reviewId },
     });
 
     if (!existingReview || existingReview.reviewerId !== session.id) {
       return NextResponse.json({ error: 'Review not found or unauthorized' }, { status: 404 });
     }
 
-    // 更新評論
     const review = await prisma.review.update({
-      where: { id: parseInt(reviewId) },
-      data: { rating, comment, updatedAt: new Date() },
+      where: { id: reviewId },
+      data: {
+        rating,
+        comment: typeof comment === 'string' ? comment : null,
+        updatedAt: new Date(),
+      },
       include: {
         reviewer: {
-          select: { id: true, name: true, avatarUrl: true }
-        }
-      }
+          select: { id: true, name: true, avatarUrl: true },
+        },
+      },
     });
 
-    // 更新行程的平均評分
     await updateTripRating(existingReview.tripId);
 
     return NextResponse.json(review);
@@ -140,7 +163,6 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/reviews - 刪除評論
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getSessionFromCookies();
@@ -149,15 +171,14 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const reviewId = searchParams.get('reviewId');
+    const reviewId = parseId(searchParams.get('reviewId') ?? undefined);
 
-    if (!reviewId) {
+    if (reviewId === null) {
       return NextResponse.json({ error: 'Review ID is required' }, { status: 400 });
     }
 
-    // 檢查評論是否存在且屬於當前用戶
     const existingReview = await prisma.review.findUnique({
-      where: { id: parseInt(reviewId) }
+      where: { id: reviewId },
     });
 
     if (!existingReview || existingReview.reviewerId !== session.id) {
@@ -166,12 +187,10 @@ export async function DELETE(request: NextRequest) {
 
     const tripId = existingReview.tripId;
 
-    // 刪除評論
     await prisma.review.delete({
-      where: { id: parseInt(reviewId) }
+      where: { id: reviewId },
     });
 
-    // 更新行程的平均評分
     await updateTripRating(tripId);
 
     return NextResponse.json({ message: 'Review deleted successfully' });
@@ -181,26 +200,28 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// 輔助函數：更新行程的平均評分
 async function updateTripRating(tripId: number) {
-  const reviews = await prisma.review.findMany({
+  const reviews: ReviewRatingRow[] = await prisma.review.findMany({
     where: { tripId },
-    select: { rating: true }
+    select: { rating: true },
   });
 
   if (reviews.length === 0) {
     await prisma.trip.update({
       where: { id: tripId },
-      data: { averageRating: null, reviewCount: 0 }
+      data: { averageRating: null, reviewCount: 0 },
     });
-  } else {
-    const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
-    await prisma.trip.update({
-      where: { id: tripId },
-      data: {
-        averageRating: Math.round(averageRating * 10) / 10, // 保留一位小數
-        reviewCount: reviews.length
-      }
-    });
+    return;
   }
+
+  const totalRating = reviews.reduce<number>((sum, review) => sum + review.rating, 0);
+  const averageRating = totalRating / reviews.length;
+
+  await prisma.trip.update({
+    where: { id: tripId },
+    data: {
+      averageRating: Math.round(averageRating * 10) / 10,
+      reviewCount: reviews.length,
+    },
+  });
 }
