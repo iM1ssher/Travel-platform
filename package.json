@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "prisma:generate": "prisma generate",
     "type-check": "tsc --noEmit",
-    "check": "npx prisma validate && npm run type-check && npm run lint"
+    "check": "npx prisma validate && npm run prisma:generate && npm run type-check && npm run lint"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

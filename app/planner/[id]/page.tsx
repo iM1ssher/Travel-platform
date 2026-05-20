@@ -10,6 +10,16 @@ type Params = {
   };
 };
 
+type PlannerTripRow = {
+  id: number;
+  title: string;
+  summary: string | null;
+  coverImage: string | null;
+  averageRating: number | null;
+  reviewCount: number;
+  updatedAt: Date;
+};
+
 export default async function PlannerProfilePage({ params }: Params) {
   const plannerId = parseInt(params.id, 10);
   if (Number.isNaN(plannerId)) {
@@ -44,11 +54,11 @@ export default async function PlannerProfilePage({ params }: Params) {
     notFound();
   }
 
-  const publishedTrips = planner.trips;
+  const publishedTrips: PlannerTripRow[] = planner.trips;
   const averageRating =
-    publishedTrips.length > 0
+  publishedTrips.length > 0
       ? Math.round(
-          (publishedTrips.reduce((sum, trip) => sum + (trip.averageRating || 0), 0) / publishedTrips.length) * 10
+          (publishedTrips.reduce<number>((sum, trip: PlannerTripRow) => sum + (trip.averageRating || 0), 0) / publishedTrips.length) * 10
         ) / 10
       : null;
   const avatarUrl = planner.avatarUrl ? planner.avatarUrl : undefined;
@@ -132,7 +142,7 @@ export default async function PlannerProfilePage({ params }: Params) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {publishedTrips.map((trip) => (
+                  {publishedTrips.map((trip: PlannerTripRow) => (
                     <Link
                       key={trip.id}
                       href={`/trip/${trip.id}`}
