@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+type SeedTripRow = {
+  id: number;
+  title: string;
+  summary: string | null;
+  coverImage: string | null;
+  updatedAt: Date;
+};
+
 export async function GET() {
   try {
     // 獲取測試用戶
@@ -54,7 +62,7 @@ export async function GET() {
 
     return NextResponse.json({
       message: '成功創建測試行程！',
-      trips: trips.map(t => ({
+      trips: trips.map((t: SeedTripRow) => ({
         id: t.id,
         title: t.title,
         summary: t.summary,

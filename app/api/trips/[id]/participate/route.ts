@@ -6,6 +6,10 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+type TripRatingRow = {
+  rating: number;
+};
+
 // POST /api/trips/[id]/participate - 加入行程
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -142,7 +146,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // 輔助函數：更新行程的平均評分
 async function updateTripRating(tripId: number) {
-  const reviews = await prisma.review.findMany({
+  const reviews: TripRatingRow[] = await prisma.review.findMany({
     where: { tripId },
     select: { rating: true }
   });
@@ -153,7 +157,8 @@ async function updateTripRating(tripId: number) {
       data: { averageRating: null, reviewCount: 0 }
     });
   } else {
-    const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+    const totalRating = reviews.reduce<number>((sum, review) => sum + review.rating, 0);
+    const averageRating = totalRating / reviews.length;
     await prisma.trip.update({
       where: { id: tripId },
       data: {

@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 
+type SearchTripRow = {
+  id: number;
+  title: string;
+  coverImage: string | null;
+  summary: string | null;
+  updatedAt: Date;
+  averageRating: number | null;
+  reviewCount: number;
+  author: {
+    id: number;
+    name: string | null;
+    avatarUrl: string | null;
+  };
+  favorites: Array<{ id: number }>;
+};
+
+type SearchPlannerRow = {
+  id: number;
+  name: string | null;
+  avatarUrl: string | null;
+  createdAt: Date;
+  trips: Array<{ id: number }>;
+  favoredByTravelers: Array<{ id: number }>;
+};
+
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   const sessionUser = await getSessionFromCookies();
@@ -37,7 +62,7 @@ export async function GET(request: NextRequest) {
       }
     : { role: "planner" };
 
-  const [trips, planners] = await Promise.all([
+  const [trips, planners]: [SearchTripRow[], SearchPlannerRow[]] = await Promise.all([
     prisma.trip.findMany({
       where: tripWhere,
       orderBy: { updatedAt: "desc" },
@@ -85,7 +110,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   return NextResponse.json({
-    trips: trips.map((trip) => ({
+    trips: trips.map((trip: SearchTripRow) => ({
       id: trip.id,
       title: trip.title,
       coverImage: trip.coverImage,
@@ -96,7 +121,7 @@ export async function GET(request: NextRequest) {
       isFavorited: favoriteTravelerId ? trip.favorites.length > 0 : false,
       author: trip.author,
     })),
-    planners: planners.map((planner) => ({
+    planners: planners.map((planner: SearchPlannerRow) => ({
       id: planner.id,
       name: planner.name,
       avatarUrl: planner.avatarUrl,

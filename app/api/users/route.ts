@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+type UserSearchRow = {
+  id: number;
+  name: string | null;
+  avatarUrl: string | null;
+  role: string;
+  trips: Array<{ id: number }>;
+};
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const q = url.searchParams.get('q')?.trim() || '';
@@ -14,7 +22,7 @@ export async function GET(request: NextRequest) {
     where.name = { contains: q, mode: 'insensitive' };
   }
 
-  const users = await prisma.user.findMany({
+  const users: UserSearchRow[] = await prisma.user.findMany({
     where,
     orderBy: { createdAt: 'desc' },
     take: 20,
@@ -31,7 +39,7 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json(
-    users.map((user) => ({
+    users.map((user: UserSearchRow) => ({
       id: user.id,
       name: user.name,
       avatarUrl: user.avatarUrl,

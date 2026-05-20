@@ -6,6 +6,17 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+type ParticipationRow = {
+  id: number;
+  joinedAt: Date;
+  status: string;
+  trip: {
+    id: number;
+    title: string;
+    isPublished: boolean;
+  };
+};
+
 export async function GET(_: Request, { params }: RouteParams) {
   const resolvedParams = await params;
   const userId = parseInt(resolvedParams.id, 10);
@@ -19,7 +30,7 @@ export async function GET(_: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const participations = await prisma.tripParticipation.findMany({
+  const participations: ParticipationRow[] = await prisma.tripParticipation.findMany({
     where: { userId },
     orderBy: { joinedAt: 'desc' },
     include: {
@@ -34,7 +45,7 @@ export async function GET(_: Request, { params }: RouteParams) {
   });
 
   return NextResponse.json(
-    participations.map((participation) => ({
+    participations.map((participation: ParticipationRow) => ({
       id: participation.id,
       joinedAt: participation.joinedAt.toISOString(),
       status: participation.status,

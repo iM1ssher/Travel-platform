@@ -6,6 +6,38 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+type FavoriteTripRow = {
+  id: number;
+  createdAt: Date;
+  trip: {
+    id: number;
+    title: string;
+    summary: string | null;
+    coverImage: string | null;
+    isPublished: boolean;
+    updatedAt: Date;
+    averageRating: number | null;
+    reviewCount: number;
+    author: {
+      id: number;
+      name: string | null;
+      avatarUrl: string | null;
+    };
+  };
+};
+
+type FavoritePlannerRow = {
+  id: number;
+  createdAt: Date;
+  planner: {
+    id: number;
+    name: string | null;
+    avatarUrl: string | null;
+    createdAt: Date;
+    trips: Array<{ id: number }>;
+  };
+};
+
 export async function GET(_: Request, { params }: RouteParams) {
   const resolvedParams = await params;
   const userId = Number.parseInt(resolvedParams.id, 10);
@@ -19,7 +51,7 @@ export async function GET(_: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [tripFavorites, plannerFavorites] = await Promise.all([
+  const [tripFavorites, plannerFavorites]: [FavoriteTripRow[], FavoritePlannerRow[]] = await Promise.all([
     prisma.favoriteTrip.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -70,7 +102,7 @@ export async function GET(_: Request, { params }: RouteParams) {
   ]);
 
   return NextResponse.json({
-    trips: tripFavorites.map((favorite) => ({
+    trips: tripFavorites.map((favorite: FavoriteTripRow) => ({
       id: favorite.id,
       favoritedAt: favorite.createdAt.toISOString(),
       trip: {
@@ -78,7 +110,7 @@ export async function GET(_: Request, { params }: RouteParams) {
         updatedAt: favorite.trip.updatedAt.toISOString(),
       },
     })),
-    planners: plannerFavorites.map((favorite) => ({
+    planners: plannerFavorites.map((favorite: FavoritePlannerRow) => ({
       id: favorite.id,
       favoritedAt: favorite.createdAt.toISOString(),
       planner: {

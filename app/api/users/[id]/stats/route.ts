@@ -11,6 +11,21 @@ type BaseStats = {
   name: string | null;
 };
 
+type PlannerTripStatsRow = {
+  id: number;
+  averageRating: number | null;
+  reviewCount: number;
+  isPublished: boolean;
+};
+
+type TravelerParticipationRow = {
+  status: string;
+};
+
+type ReviewRatingRow = {
+  rating: number;
+};
+
 type PlannerStats = BaseStats & {
   totalTrips: number;
   publishedTrips: number;
@@ -63,7 +78,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     if (user.role === 'planner') {
       // Planner 統計：行程數量、平均評分、總評論數
-      const trips = await prisma.trip.findMany({
+      const trips: PlannerTripStatsRow[] = await prisma.trip.findMany({
         where: { authorId: userId },
         select: {
           id: true,
@@ -73,9 +88,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         }
       });
 
-      const publishedTrips = trips.filter(trip => trip.isPublished);
-      const totalRating = publishedTrips.reduce<number>((sum, trip) => sum + (trip.averageRating || 0), 0);
-      const totalReviews = publishedTrips.reduce<number>((sum, trip) => sum + trip.reviewCount, 0);
+      const publishedTrips = trips.filter((trip: PlannerTripStatsRow) => trip.isPublished);
+      const totalRating = publishedTrips.reduce<number>((sum, trip: PlannerTripStatsRow) => sum + (trip.averageRating || 0), 0);
+      const totalReviews = publishedTrips.reduce<number>((sum, trip: PlannerTripStatsRow) => sum + trip.reviewCount, 0);
 
       stats = {
         ...stats,
@@ -87,7 +102,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       };
     } else if (user.role === 'traveler') {
       // Traveler 統計：參與的行程數量、已完成的行程、平均給予的評分
-      const participations = await prisma.tripParticipation.findMany({
+      const participations: TravelerParticipationRow[] = await prisma.tripParticipation.findMany({
         where: { userId },
         include: {
           trip: {
@@ -100,7 +115,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         }
       });
 
-      const reviews = await prisma.review.findMany({
+      const reviews: ReviewRatingRow[] = await prisma.review.findMany({
         where: { reviewerId: userId },
         select: { rating: true }
       });
@@ -114,13 +129,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         })
       ]);
 
-      const totalRating = reviews.reduce<number>((sum, review) => sum + review.rating, 0);
+      const totalRating = reviews.reduce<number>((sum, review: ReviewRatingRow) => sum + review.rating, 0);
 
       stats = {
         ...stats,
         participatedTrips: participations.length,
-        activeTrips: participations.filter(p => p.status === 'active').length,
-        completedTrips: participations.filter(p => p.status === 'completed').length,
+        activeTrips: participations.filter((p: TravelerParticipationRow) => p.status === 'active').length,
+        completedTrips: participations.filter((p: TravelerParticipationRow) => p.status === 'completed').length,
         favoriteTrips,
         favoritePlanners,
         averageGivenRating: reviews.length > 0 ? Math.round((totalRating / reviews.length) * 10) / 10 : null,
