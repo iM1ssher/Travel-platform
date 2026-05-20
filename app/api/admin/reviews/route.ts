@@ -101,7 +101,8 @@ async function updateTripRating(tripId: number) {
       data: { averageRating: null, reviewCount: 0 }
     });
   } else {
-    const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+    const totalRating = reviews.reduce<number>((sum, review) => sum + review.rating, 0);
+    const averageRating = totalRating / reviews.length;
     await prisma.trip.update({
       where: { id: tripId },
       data: {
