@@ -22,6 +22,9 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
+    # 2.1設定DB env:
+    - name: Set env
+      run: echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
 
     # 3. 安裝專案依賴套件
     - name: Install Dependencies
