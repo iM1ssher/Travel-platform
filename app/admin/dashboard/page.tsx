@@ -1,10 +1,9 @@
 ﻿"use client";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  ShieldCheck, Users, Database as DbIcon, Activity,
-  DollarSign, AlertTriangle, Settings, MessageSquare,
-  FileText, Trash2, Edit3, Eye
+  ShieldCheck, Users, Activity,
+  MessageSquare, FileText, Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/app/providers";

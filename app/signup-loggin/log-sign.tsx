@@ -74,7 +74,7 @@ export default function LogSignPage() {
 
       const destination = role === "admin" ? "/admin/dashboard" : `/${role}/dashboard`;
       router.push(destination);
-    } catch (err) {
+    } catch {
       setError("網路連線異常，請稍後重試。");
     } finally {
       setLoading(false);

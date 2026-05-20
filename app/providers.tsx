@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export type UserSession = {
@@ -44,20 +44,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     router.push("/");
     router.refresh();
-  };
+  }, [router]);
 
   useEffect(() => {
-    refreshSession();
+    const loadSession = async () => {
+      await refreshSession();
+    };
+
+    void loadSession();
   }, []);
 
   const value = useMemo(
     () => ({ user, loading, setUser, refreshSession, logout }),
-    [user, loading]
+    [user, loading, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

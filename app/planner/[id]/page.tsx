@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { ArrowLeft, Star, User, MapPin } from 'lucide-react';
+import { ArrowLeft, Star, User } from 'lucide-react';
 import { FavoriteToggle } from '@/app/components/favorite-toggle';
 
 type Params = {

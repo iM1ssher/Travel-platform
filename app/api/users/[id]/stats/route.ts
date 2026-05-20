@@ -5,6 +5,40 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+type BaseStats = {
+  userId: number;
+  role: string;
+  name: string | null;
+};
+
+type PlannerStats = BaseStats & {
+  totalTrips: number;
+  publishedTrips: number;
+  draftTrips: number;
+  averageRating: number | null;
+  totalReviews: number;
+};
+
+type TravelerStats = BaseStats & {
+  participatedTrips: number;
+  activeTrips: number;
+  completedTrips: number;
+  favoriteTrips: number;
+  favoritePlanners: number;
+  averageGivenRating: number | null;
+  totalReviewsGiven: number;
+};
+
+type AdminStats = BaseStats & {
+  totalUsers: number;
+  totalTrips: number;
+  publishedTrips: number;
+  draftTrips: number;
+  totalReviews: number;
+};
+
+type UserStats = BaseStats | PlannerStats | TravelerStats | AdminStats;
+
 // GET /api/users/[id]/stats - 獲取用戶統計數據
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -21,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    let stats: any = {
+    let stats: UserStats = {
       userId,
       role: user.role,
       name: user.name

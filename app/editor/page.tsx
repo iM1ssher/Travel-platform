@@ -1,9 +1,8 @@
 ﻿// 前端 - 行程編輯器頁面：提供規劃師建立與發布行程
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Compass,
@@ -12,7 +11,6 @@ import {
   Send,
   Sparkles,
   AlignLeft,
-  Table,
   ImagePlus,
   CheckCircle,
   AlertTriangle,
@@ -34,6 +32,15 @@ type DraftEntry = {
   isPublished: boolean;
 };
 
+type TripMutationResponse = {
+  id?: number;
+  trip?: {
+    id?: number;
+  };
+  message?: string;
+  error?: string;
+};
+
 export default function SmartEditor() {
   const router = useRouter();
 
@@ -47,12 +54,11 @@ export default function SmartEditor() {
   const [publishing, setPublishing] = useState(false);
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [loadingMyDrafts, setLoadingMyDrafts] = useState(false);
-  const [editorMode, setEditorMode] = useState<"text" | "table">("text");
   const [isGenerating, setIsGenerating] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [myDrafts, setMyDrafts] = useState<DraftEntry[]>([]);
 
-  const loadMyDrafts = async () => {
+  const loadMyDrafts = useCallback(async () => {
     if (!user || user.role !== "planner") {
       setMyDrafts([]);
       return;
@@ -73,18 +79,18 @@ export default function SmartEditor() {
     } finally {
       setLoadingMyDrafts(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const draftIdParam = urlParams.get("draftId");
+    const loadDraft = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const draftIdParam = urlParams.get("draftId");
 
-    if (!draftIdParam) {
-      setDraftId(null);
-      return;
-    }
+      if (!draftIdParam) {
+        setDraftId(null);
+        return;
+      }
 
-    const fetchDraft = async () => {
       setLoadingDraft(true);
       try {
         const res = await fetch(`/api/trips/${draftIdParam}`);
@@ -108,18 +114,21 @@ export default function SmartEditor() {
       }
     };
 
-    fetchDraft();
+    void loadDraft();
   }, []);
 
   useEffect(() => {
-    loadMyDrafts();
-  }, [user]);
+    const loadDrafts = async () => {
+      await loadMyDrafts();
+    };
+
+    void loadDrafts();
+  }, [loadMyDrafts]);
 
   const handleAIGenerate = () => {
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
-      setEditorMode("table");
     }, 1500);
   };
 
@@ -154,7 +163,7 @@ export default function SmartEditor() {
       };
 
       let res: Response;
-      let result: any;
+      let result: TripMutationResponse;
 
       if (draftId) {
         res = await fetch(`/api/trips/${draftId}`, {

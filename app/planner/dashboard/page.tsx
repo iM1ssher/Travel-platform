@@ -11,7 +11,6 @@ import {
   FileText,
   Edit3,
   PlusCircle,
-  Eye,
   ThumbsUp,
 } from "lucide-react";
 import Link from "next/link";

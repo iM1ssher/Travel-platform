@@ -5,15 +5,10 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Star,
-  MapPin,
   Calendar,
   User,
   MessageSquare,
-  Heart,
-  Share2,
   ChevronLeft,
-  Plus,
-  Minus
 } from "lucide-react";
 import Link from "next/link";
 import { FavoriteToggle } from "@/app/components/favorite-toggle";
