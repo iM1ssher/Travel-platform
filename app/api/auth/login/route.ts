@@ -33,7 +33,18 @@ export async function POST(request: Request) {
   };
 
   const cookieValue = createSessionCookie(sessionData);
-  return NextResponse.json({ user: sessionData }, { headers: { "Set-Cookie": cookieValue } });
+  return NextResponse.json(
+    {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name ?? user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+      },
+    },
+    { headers: { "Set-Cookie": cookieValue } }
+  );
 }
 
 

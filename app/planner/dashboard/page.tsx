@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/app/providers";
+import { ProfilePanel } from "@/app/components/profile-panel";
 
 type DraftTrip = {
   id: number;
@@ -47,7 +48,7 @@ const defaultStats: PlannerStats = {
 };
 
 export default function PlannerDashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, setUser } = useAuth();
   const [drafts, setDrafts] = useState<DraftTrip[]>([]);
   const [publishedTrips, setPublishedTrips] = useState<PlannerTrip[]>([]);
   const [loadingDrafts, setLoadingDrafts] = useState(true);
@@ -147,21 +148,16 @@ export default function PlannerDashboard() {
             <p className="text-slate-500 mt-1">管理你的規劃師行程與草稿</p>
           </div>
 
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-end">
-            <div className="flex items-center gap-4 rounded-3xl bg-white border border-slate-200 px-5 py-4 shadow-sm">
-              <div className="h-16 w-16 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center text-slate-500">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-xl font-bold">{user.name.charAt(0)}</span>
-                )}
-              </div>
-              <div>
-                <p className="text-lg font-bold text-slate-900">{user.name}</p>
-                <p className="text-sm text-slate-500">{user.role === "planner" ? "認證規劃師" : user.role}</p>
-              </div>
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-end">
+            <div className="w-full sm:w-80">
+              <ProfilePanel
+                user={user}
+                roleLabel={user.role === "planner" ? "認證規劃師" : user.role}
+                accentColor="teal"
+                compact
+                onUserUpdated={setUser}
+              />
             </div>
-
             <Link href="/editor" className="inline-flex items-center gap-2 bg-teal-600 text-white px-5 py-3 rounded-full font-medium hover:bg-teal-700 transition shadow-sm">
               <PlusCircle size={20} /> 建立新草稿
             </Link>

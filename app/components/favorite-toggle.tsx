@@ -15,6 +15,10 @@ type FavoriteToggleProps = {
   onChange?: (isFavorited: boolean) => void;
 };
 
+type FavoriteStatusResponse = {
+  isFavorited?: boolean;
+};
+
 export function FavoriteToggle({
   endpoint,
   activeLabel,
@@ -25,9 +29,9 @@ export function FavoriteToggle({
   onChange,
 }: FavoriteToggleProps) {
   const { user } = useAuth();
-  const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
-  const [isLoading, setIsLoading] = useState(initialIsFavorited === null && user?.role === "traveler");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFavorited, setIsFavorited] = useState<boolean>(initialIsFavorited ?? false);
+  const [isLoading, setIsLoading] = useState<boolean>(initialIsFavorited === null && user?.role === "traveler");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     const loadStatus = async () => {
@@ -43,7 +47,7 @@ export function FavoriteToggle({
           return;
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as FavoriteStatusResponse;
         setIsFavorited(Boolean(data.isFavorited));
       } catch {
         setIsFavorited(false);
@@ -52,7 +56,7 @@ export function FavoriteToggle({
       }
     };
 
-    loadStatus();
+    void loadStatus();
   }, [endpoint, initialIsFavorited, user]);
 
   if (!user) {
