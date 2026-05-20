@@ -74,8 +74,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
 
       const publishedTrips = trips.filter(trip => trip.isPublished);
-      const totalRating = publishedTrips.reduce((sum, trip) => sum + (trip.averageRating || 0), 0);
-      const totalReviews = publishedTrips.reduce((sum, trip) => sum + trip.reviewCount, 0);
+      const totalRating = publishedTrips.reduce<number>((sum, trip) => sum + (trip.averageRating || 0), 0);
+      const totalReviews = publishedTrips.reduce<number>((sum, trip) => sum + trip.reviewCount, 0);
 
       stats = {
         ...stats,
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         })
       ]);
 
-      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      const totalRating = reviews.reduce<number>((sum, review) => sum + review.rating, 0);
 
       stats = {
         ...stats,

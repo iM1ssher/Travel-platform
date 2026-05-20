@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromCookies } from '@/lib/session';
 
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role'); // 過濾角色
     const skip = (page - 1) * limit;
 
-    const where: Prisma.UserWhereInput = {};
+    const where: { role?: string } = {};
     if (role) {
       where.role = role;
     }

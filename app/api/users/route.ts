@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
@@ -7,7 +6,10 @@ export async function GET(request: NextRequest) {
   const q = url.searchParams.get('q')?.trim() || '';
   const role = url.searchParams.get('role') || 'planner';
 
-  const where: Prisma.UserWhereInput = { role };
+  const where: {
+    role: string;
+    name?: { contains: string; mode: 'insensitive' };
+  } = { role };
   if (q) {
     where.name = { contains: q, mode: 'insensitive' };
   }

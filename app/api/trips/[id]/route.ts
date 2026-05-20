@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 
@@ -70,7 +69,12 @@ export async function PATCH(
     publish?: boolean;
   };
 
-  const data: Prisma.TripUpdateInput = {};
+  const data: {
+    title?: string;
+    summary?: string;
+    coverImage?: string | null;
+    isPublished?: boolean;
+  } = {};
 
   if (typeof title === "string") {
     data.title = title.trim();

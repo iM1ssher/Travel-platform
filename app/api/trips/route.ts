@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/session";
 
@@ -7,7 +6,13 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim();
 
-  const where: Prisma.TripWhereInput = { isPublished: true };
+  const where: {
+    isPublished: boolean;
+    OR?: Array<{
+      title?: { contains: string; mode: "insensitive" };
+      summary?: { contains: string; mode: "insensitive" };
+    }>;
+  } = { isPublished: true };
 
   if (query) {
     where.OR = [
