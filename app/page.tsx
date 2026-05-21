@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, MapPinned, Search, Users } from "lucide-react";
+import { MapPin, MapPinned, Search, Star, Users } from "lucide-react";
 import { FavoriteToggle } from "@/app/components/favorite-toggle";
 import { useAuth } from "@/app/providers";
+import { buildPlannerHref } from "@/lib/slugs";
 
 type SearchTrip = {
   id: number;
@@ -33,9 +34,12 @@ type SearchPlanner = {
 };
 
 type SearchResponse = {
-  trips: SearchTrip[];
-  planners: SearchPlanner[];
+  trips?: SearchTrip[];
+  planners?: SearchPlanner[];
 };
+
+const sanitizeQuery = (value: string): string => value.replace(/<[^>]*>?/gm, "").trim();
+const formatDate = (value: string): string => new Date(value).toLocaleDateString("zh-TW");
 
 export default function HomePage() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -44,10 +48,11 @@ export default function HomePage() {
   const [planners, setPlanners] = useState<SearchPlanner[]>([]);
   const [loadingResults, setLoadingResults] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [hasActiveSearch, setHasActiveSearch] = useState(false);
   const [currentQuery, setCurrentQuery] = useState("");
 
-  const fetchResults = async (query?: string) => {
+  const hasActiveSearch = currentQuery.length > 0;
+
+  const fetchResults = useCallback(async (query: string): Promise<void> => {
     setLoadingResults(true);
     const url = query ? `/api/search?q=${encodeURIComponent(query)}` : "/api/search";
 
@@ -69,28 +74,20 @@ export default function HomePage() {
       setLoadingResults(false);
       setSearching(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (authLoading) {
       return;
     }
 
-    const loadResults = async () => {
-      await fetchResults(currentQuery || undefined);
-    };
+    void Promise.resolve().then(() => fetchResults(currentQuery));
+  }, [authLoading, currentQuery, fetchResults, user?.id, user?.role]);
 
-    void loadResults();
-  }, [authLoading, currentQuery, user?.id, user?.role]);
-
-  const handleSearch = async (event: FormEvent) => {
+  const handleSearch = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    const sanitizedQuery = searchQuery.replace(/<[^>]*>?/gm, "").trim();
-
     setSearching(true);
-    setHasActiveSearch(Boolean(sanitizedQuery));
-    setCurrentQuery(sanitizedQuery);
-    await fetchResults(sanitizedQuery || undefined);
+    setCurrentQuery(sanitizeQuery(searchQuery));
   };
 
   return (
@@ -135,7 +132,7 @@ export default function HomePage() {
               href="/signup-loggin/log-sign"
               className="rounded-2xl bg-blue-600 px-7 py-3 text-base font-bold text-white shadow-sm transition-colors hover:bg-blue-700"
             >
-              Sign Up / Log In
+              註冊 / 登入
             </Link>
           )}
         </div>
@@ -144,29 +141,27 @@ export default function HomePage() {
       <main className="flex flex-col items-center pb-16 pt-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 w-full text-center">
           <h1 className="mb-3 text-3xl font-extrabold leading-tight tracking-tight text-slate-900 md:text-4xl">
-            探索 AITravel 精選旅程
-            <br className="hidden md:block" />
-            也一起找到值得收藏的規劃師
+            Travel platform
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-500 md:text-base">
-            首頁搜尋現在會同時返回公開行程與規劃師結果。旅人可以直接在這裡收藏，收藏內容會同步出現在旅人儀表板。
+            探索行程、找到規劃師，收藏下一趟旅程的靈感。
           </p>
         </motion.div>
 
         {user?.role === "planner" && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 0.999, y: 0 }} className="mb-8 w-full">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 w-full">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">規劃師工作台</h2>
-                  <p className="text-sm text-slate-500">管理公開行程、草稿與 AI 編輯器。</p>
+                  <p className="text-sm text-slate-500">管理你的行程草稿、已發布行程與收藏內容。</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Link href="/planner/dashboard" className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
-                    打開規劃師後台
+                    前往儀表板
                   </Link>
                   <Link href="/editor" className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-                    建立新行程
+                    建立行程
                   </Link>
                 </div>
               </div>
@@ -182,7 +177,7 @@ export default function HomePage() {
                 type="text"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="搜尋公開行程或規劃師"
+                placeholder="搜尋行程或規劃師"
                 className="w-full bg-transparent text-lg font-bold text-slate-800 outline-none placeholder:text-slate-300"
               />
             </div>
@@ -198,12 +193,12 @@ export default function HomePage() {
         {loadingResults ? (
           <div className="grid w-full gap-8">
             <div className="grid gap-4">
-              {[...Array(3)].map((_, index) => (
+              {[0, 1, 2].map((index: number) => (
                 <div key={index} className="h-40 rounded-3xl bg-slate-100 animate-pulse" />
               ))}
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {[...Array(3)].map((_, index) => (
+              {[0, 1, 2].map((index: number) => (
                 <div key={index} className="h-32 rounded-3xl bg-slate-100 animate-pulse" />
               ))}
             </div>
@@ -213,7 +208,7 @@ export default function HomePage() {
             <section>
               <div className="mb-4 flex items-end justify-between border-b border-slate-200 pb-2">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">公開行程</h2>
+                  <h2 className="text-lg font-bold text-slate-800">行程</h2>
                   <p className="text-xs text-slate-500">
                     {hasActiveSearch ? "搜尋結果中的可收藏行程" : "最新公開行程"}
                   </p>
@@ -222,57 +217,60 @@ export default function HomePage() {
 
               {trips.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                  {hasActiveSearch ? "沒有找到符合的行程。試著調整搜尋關鍵字。" : "目前還沒有公開行程。"}
+                  {hasActiveSearch ? "沒有找到符合條件的行程。" : "目前沒有公開行程。"}
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {trips.map((trip) => (
-                    <div
+                  {trips.map((trip: SearchTrip) => (
+                    <article
                       key={trip.id}
                       className="flex flex-row overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm transition-all hover:shadow-md"
                     >
-                      <Link href={`/trip/${trip.id}`} className="flex flex-1 cursor-pointer flex-row group">
-                        <div className="relative h-28 w-32 shrink-0 overflow-hidden bg-slate-200 sm:w-36">
-                          {trip.coverImage ? (
-                            <img
-                              src={trip.coverImage}
-                              alt={trip.title}
-                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-200 text-slate-400">No Image</div>
-                          )}
-                        </div>
-                        <div className="flex flex-grow flex-col justify-center p-3">
+                      <Link href={`/trip/${trip.id}`} className="group relative h-28 w-32 shrink-0 overflow-hidden bg-slate-200 sm:w-36">
+                        {trip.coverImage ? (
+                          <img
+                            src={trip.coverImage}
+                            alt={trip.title}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-slate-200 text-slate-400">No Image</div>
+                        )}
+                      </Link>
+
+                      <div className="flex min-w-0 flex-1 flex-col justify-center p-3">
+                        <Link href={`/trip/${trip.id}`} className="group block">
                           <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-blue-600">
                             <MapPin className="h-3 w-3" />
-                            更新於 {new Date(trip.updatedAt).toLocaleDateString()}
+                            更新於 {formatDate(trip.updatedAt)}
                           </div>
                           <h3 className="mb-2 line-clamp-2 text-base font-bold leading-tight text-slate-800 transition-colors group-hover:text-blue-600">
                             {trip.title}
                           </h3>
                           <p className="line-clamp-2 text-sm text-slate-500">{trip.summary || "尚未提供行程摘要。"}</p>
-                          <div className="mt-3 flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                              <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500">
-                                {trip.author.avatarUrl ? (
-                                  <img src={trip.author.avatarUrl} alt={trip.author.name ?? "規劃師"} className="h-full w-full object-cover" />
-                                ) : (
-                                  <span>{(trip.author.name ?? "A").charAt(0)}</span>
-                                )}
-                              </span>
-                              <span>{trip.author.name ?? "規劃師"}</span>
+                        </Link>
+
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <Link href={buildPlannerHref(trip.author.id, trip.author.name)} className="group/planner flex min-w-0 items-center gap-2 text-xs text-slate-500 transition hover:text-blue-600">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100 text-slate-500 transition group-hover/planner:bg-blue-50 group-hover/planner:text-blue-600">
+                              {trip.author.avatarUrl ? (
+                                <img src={trip.author.avatarUrl} alt={trip.author.name ?? "規劃師"} className="h-full w-full object-cover" />
+                              ) : (
+                                <span>{(trip.author.name ?? "A").charAt(0)}</span>
+                              )}
+                            </span>
+                            <span className="truncate font-medium">{trip.author.name ?? "規劃師"}</span>
+                          </Link>
+
+                          {trip.averageRating ? (
+                            <div className="flex shrink-0 items-center gap-1 text-xs text-amber-600">
+                              <Star size={14} className="fill-current" />
+                              <span className="font-medium">{trip.averageRating.toFixed(1)}</span>
+                              <span className="text-slate-400">({trip.reviewCount})</span>
                             </div>
-                            {trip.averageRating ? (
-                              <div className="flex items-center gap-1 text-xs text-amber-600">
-                                <span>★</span>
-                                <span className="font-medium">{trip.averageRating.toFixed(1)}</span>
-                                <span className="text-slate-400">({trip.reviewCount})</span>
-                              </div>
-                            ) : null}
-                          </div>
+                          ) : null}
                         </div>
-                      </Link>
+                      </div>
 
                       <div className="flex items-center px-3">
                         <FavoriteToggle
@@ -285,7 +283,7 @@ export default function HomePage() {
                           variant="ghost"
                         />
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}
@@ -296,20 +294,20 @@ export default function HomePage() {
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">規劃師</h2>
                   <p className="text-xs text-slate-500">
-                    {hasActiveSearch ? "搜尋結果中的規劃師" : "近期可合作的規劃師"}
+                    {hasActiveSearch ? "搜尋結果中的規劃師" : "最新加入的規劃師"}
                   </p>
                 </div>
               </div>
 
               {planners.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
-                  {hasActiveSearch ? "沒有找到符合的規劃師。試著換個關鍵字。" : "目前沒有可顯示的規劃師。"}
+                  {hasActiveSearch ? "沒有找到符合條件的規劃師。" : "目前沒有可顯示的規劃師。"}
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {planners.map((planner) => (
-                    <div key={planner.id} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-blue-400 hover:bg-blue-50">
-                      <Link href={`/planner/${planner.id}`} className="block">
+                  {planners.map((planner: SearchPlanner) => (
+                    <article key={planner.id} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-blue-400 hover:bg-blue-50">
+                      <Link href={buildPlannerHref(planner.id, planner.name)} className="block">
                         <div className="flex items-center gap-4">
                           <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 text-xl font-bold text-slate-700">
                             {planner.avatarUrl ? (
@@ -318,10 +316,10 @@ export default function HomePage() {
                               (planner.name ?? "P").charAt(0)
                             )}
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-slate-900">{planner.name ?? "規劃師"}</h3>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="truncate text-lg font-semibold text-slate-900">{planner.name ?? "規劃師"}</h3>
                             <p className="text-sm text-slate-500">公開行程 {planner.publishedTripCount} 筆</p>
-                            <p className="mt-1 text-xs text-slate-400">加入時間 {new Date(planner.createdAt).toLocaleDateString()}</p>
+                            <p className="mt-1 text-xs text-slate-400">加入時間 {formatDate(planner.createdAt)}</p>
                           </div>
                         </div>
                       </Link>
@@ -329,7 +327,7 @@ export default function HomePage() {
                       <div className="mt-4 flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-slate-500">
                           <Users size={16} />
-                          <span>可前往個人頁查看公開行程</span>
+                          <span>查看規劃師公開行程</span>
                         </div>
                         <FavoriteToggle
                           key={`planner-${planner.id}-${planner.isFavorited ? "1" : "0"}`}
@@ -340,7 +338,7 @@ export default function HomePage() {
                           variant="ghost"
                         />
                       </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               )}

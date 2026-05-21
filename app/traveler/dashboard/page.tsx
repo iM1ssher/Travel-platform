@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/app/providers";
 import { FavoriteToggle } from "@/app/components/favorite-toggle";
 import { ProfilePanel } from "@/app/components/profile-panel";
+import { buildPlannerHref } from "@/lib/slugs";
 
 type FavoriteTrip = {
   id: number;
@@ -271,7 +272,7 @@ export default function TravelerDashboard() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {favoritePlanners.map((favoritePlanner: FavoritePlanner) => (
                 <div key={favoritePlanner.id} className="rounded-3xl border border-slate-200 bg-white p-5 transition hover:border-blue-400 hover:bg-blue-50">
-                  <Link href={`/planner/${favoritePlanner.planner.id}`} className="block">
+                  <Link href={buildPlannerHref(favoritePlanner.planner.id, favoritePlanner.planner.name)} className="block">
                     <div className="flex items-center gap-4">
                       <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 text-xl font-bold text-slate-700">
                         {favoritePlanner.planner.avatarUrl ? (

@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import { FavoriteToggle } from "@/app/components/favorite-toggle";
 import { useAuth } from "@/app/providers";
+import { buildPlannerHref } from "@/lib/slugs";
 
 type Trip = {
   id: number;
@@ -225,7 +226,7 @@ export default function TripDetailPage() {
                 <div className="flex items-center gap-4 text-sm text-slate-500">
                   <div className="flex items-center gap-1">
                     <User size={16} />
-                    <Link href={`/planner/${trip.author.id}`} className="text-blue-600 hover:underline">
+                    <Link href={buildPlannerHref(trip.author.id, trip.author.name)} className="text-blue-600 hover:underline">
                       {trip.author.name}
                     </Link>
                   </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionFromCookies } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { parseIdPrefixedSlug } from "@/lib/slugs";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,8 +18,8 @@ export async function GET(_: Request, { params }: RouteParams) {
   }
 
   const resolvedParams = await params;
-  const plannerId = Number.parseInt(resolvedParams.id, 10);
-  if (Number.isNaN(plannerId)) {
+  const plannerId = parseIdPrefixedSlug(resolvedParams.id);
+  if (plannerId === null) {
     return NextResponse.json({ error: "Invalid planner ID" }, { status: 400 });
   }
 
@@ -46,8 +47,8 @@ export async function POST(_: Request, { params }: RouteParams) {
   }
 
   const resolvedParams = await params;
-  const plannerId = Number.parseInt(resolvedParams.id, 10);
-  if (Number.isNaN(plannerId)) {
+  const plannerId = parseIdPrefixedSlug(resolvedParams.id);
+  if (plannerId === null) {
     return NextResponse.json({ error: "Invalid planner ID" }, { status: 400 });
   }
 
@@ -95,8 +96,8 @@ export async function DELETE(_: Request, { params }: RouteParams) {
   }
 
   const resolvedParams = await params;
-  const plannerId = Number.parseInt(resolvedParams.id, 10);
-  if (Number.isNaN(plannerId)) {
+  const plannerId = parseIdPrefixedSlug(resolvedParams.id);
+  if (plannerId === null) {
     return NextResponse.json({ error: "Invalid planner ID" }, { status: 400 });
   }
 
